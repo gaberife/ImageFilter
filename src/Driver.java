@@ -11,6 +11,7 @@ public class Driver {
             checkAndInit(fileName);
             Image.averageFilter();
             Image.medianFilter();
+            Image.edgeDetect();
         } catch (IOException e) {
             e.printStackTrace();
         }
