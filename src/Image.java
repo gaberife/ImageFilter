@@ -1,5 +1,7 @@
+import javafx.scene.paint.Color;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.*;
 
 public class Image {
@@ -11,11 +13,12 @@ public class Image {
     public static int[][] median;
     public static int[][] edge;
     public static int[][] hough;
+    public static int[][] accumulator;
 
-
-    public static int[][] filter1 = {{ -1,  0,  1 }, { -2,  0,  2 }, { -1,  0,  1 }};
-    public static int[][] filter2 = {{  1,  2,  1 }, {  0,  0,  0 }, { -1, -2, -1 }};
-
+    public static void initialData() throws IOException{
+        //print(data2D);
+        transformBack("data2D", data2D);
+    }
     public static void averageFilter() throws IOException {
         average = new int[height][width];
         for (int i = 1; i < height; i++) {
@@ -33,6 +36,7 @@ public class Image {
                 average[i][j] = temp;
             }
         }
+        //print(average);
         transformBack("average", average);
     }
 
@@ -62,29 +66,43 @@ public class Image {
         edge = new int[height][width];
         for (int y = 1; y < height - 1; y++) {
             for (int x = 1; x < width - 1; x++) {
+
                 int temp [][] = new int[3][3];
+
                 for (int i = 0; i < 3; i++) {
                     for (int j = 0; j < 3; j++) {
-                        temp[i][j] = data2D[x-1+i][ y-1+j];
+                        temp[i][j] = average[x-1+i][ y-1+j];
                     }
                 }
-                int gray1 = 0, gray2 = 0;
-                for (int i = 0; i < 3; i++) {
-                    for (int j = 0; j < 3; j++) {
-                        gray1 += temp[i][j] * filter1[i][j];
-                        gray2 += temp[i][j] * filter2[i][j];
-                    }
+                int deltaX = 0, deltaY = 0, posX = 0, posY = 0, negX = 0, negY = 0;
+
+                for (int col = 0; col < 3; col++) {
+                    negY += temp[2][col];
+                    posY += temp[0][col];
                 }
-                int magnitude = (int) (255 - Math.sqrt(gray1*gray1 + gray2*gray2));
+                deltaY = posY - negY;
+
+                for (int row = 0; row < 3; row++) {
+                    negY += temp[row][2];
+                    posY += temp[row][0];
+                }
+                deltaX = posX - negX;
+                int magnitude = threshold((int) Math.sqrt(deltaX*deltaX + deltaY*deltaY));
                 edge[x][y] = magnitude;
             }
         }
-        print(edge);
+        //print(edge);
         transformBack("edge", edge);
     }
 
     public static void hough() throws IOException {
         hough = new int[height][width];
+        for(int i = 0; i < height; i++){
+            for(int j = 0; j < 2*width; j++){
+                accumulator[i][j] = 0;
+            }
+        }
+
         for (int x = 1; x < height - 1; x++) {
             for (int y = 1; y < width - 1; y++) {
                 if(edge[x][y] == 225){
@@ -99,14 +117,26 @@ public class Image {
     }
 
 
+    public static int threshold(int a) {
+        if (a < 0 || a <= 110)
+            return 0;
+        else if (a > 255 || a >= 140)
+            return 255;
+        return a;
+    }
 
-        public static void transformBack(String newFile, int [][] array) throws IOException {
-        BufferedImage image = new BufferedImage(height, width, BufferedImage.TYPE_INT_RGB);
+    public static void transformBack(String newFile, int [][] array) throws IOException {
+        BufferedImage image = new BufferedImage(height, width, BufferedImage.TYPE_BYTE_GRAY);
+        WritableRaster raster = image.getRaster();
+        int[] temp = {0, 0, 0, 255};  //  pixel
         int value;
         for (int y = 1; y < height; y++) {
             for (int x = 1; x < width; x++) {
                 value = array[y][x];
-                image.setRGB(y, x, value);
+                temp[0] = value;
+                temp[1] = value;
+                temp[2] = value;
+                raster.setPixel(x, y, temp);
             }
         }
         String fileName = newFile + ".pgm";

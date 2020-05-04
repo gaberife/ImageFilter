@@ -9,6 +9,7 @@ public class Driver {
         String fileName = extendedFileName + input.nextLine() + ".pgm";
         try {
             checkAndInit(fileName);
+            Image.initialData();
             Image.averageFilter();
             Image.medianFilter();
             Image.edgeDetect();
@@ -34,16 +35,6 @@ public class Driver {
             fileInputStream.close();
             fileInputStream = new FileInputStream(absolute);
             DataInputStream dis = new DataInputStream(fileInputStream);
-
-            int numNewLines = 4;
-            while (numNewLines > 0) {
-                char c;
-                do
-                    c = (char) (dis.readUnsignedByte());
-                while (c != 32);
-                numNewLines--;
-            }
-
             Image.data2D = new int[Image.height][Image.width];
             for (int row = 0; row < Image.height; row++) {
                 for (int col = 0; col < Image.width; col++) {
