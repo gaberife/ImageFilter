@@ -3,7 +3,7 @@ import java.util.Scanner;
 
 public class Driver {
     public static void main(String[] args) {
-        System.out.println("Welcome user, its time to filter an image. Please enter the file path.");
+        System.out.println("Please enter the file name.");
         Scanner input = new Scanner(System.in);
         String extendedFileName = "Image Files for Project #7/";
         String fileName = extendedFileName + input.nextLine() + ".pgm";
@@ -13,6 +13,7 @@ public class Driver {
             Image.averageFilter();
             Image.medianFilter();
             Image.edgeDetect();
+            Image.hough();
         } catch (IOException e) {
             e.printStackTrace();
         }

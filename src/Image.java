@@ -12,27 +12,31 @@ public class Image {
     public static int[][] average;
     public static int[][] median;
     public static int[][] edge;
-    public static int[][] hough;
+    //public static int[][] hough = new int[height][width];
+
     public static int[][] accumulator;
 
-    public static void initialData() throws IOException{
-        //print(data2D);
+
+
+
+    public static void initialData() throws IOException {
         transformBack("data2D", data2D);
     }
+
     public static void averageFilter() throws IOException {
         average = new int[height][width];
-        for (int i = 1; i < height; i++) {
-            for (int j = 1; j < width; j++) {
+        for (int i = 1; i < height - 1; i++) {
+            for (int j = 1; j < width - 1; j++) {
                 int sum = 0;
                 for (int newI = -1; newI <= 1; newI++) {
                     for (int newJ = -1; newJ <= 1; newJ++) {
-                        if((i+(newJ)>=0 && i+(newI)>=0 && j+(newJ)<width && i+(newI)<height)){
-                            int temp = data2D[i+(newI)][j+(newJ)];
+                        if ((i + (newJ) >= 0 && i + (newI) >= 0 && j + (newJ) < width && i + (newI) < height)) {
+                            int temp = data2D[i + (newI)][j + (newJ)];
                             sum = sum + temp;
                         }
                     }
                 }
-                int temp = (int) (sum/9);
+                int temp = (int) (sum / 9);
                 average[i][j] = temp;
             }
         }
@@ -40,41 +44,41 @@ public class Image {
         transformBack("average", average);
     }
 
-    public static void medianFilter() throws IOException{
+    public static void medianFilter() throws IOException {
         median = new int[height][width];
-        for (int i = 1; i < height; i++) {
-            for (int j = 1; j < width; j++) {
+        for (int i = 1; i < height-1; i++) {
+            for (int j = 1; j < width-1; j++) {
                 int count = 0;
                 int array[] = new int[9];
                 for (int newI = -1; newI <= 1; newI++) {
                     for (int newJ = -1; newJ <= 1; newJ++) {
-                        if((i+(newJ)>=0 && i+(newI)>=0 && j+(newJ)<width && i+(newI)<height)){
-                            int temp = data2D[i+(newI)][j+(newJ)];
+                        if ((i + (newJ) >= 0 && i + (newI) >= 0 && j + (newJ) < width && i + (newI) < height)) {
+                            int temp = data2D[i + (newI)][j + (newJ)];
                             array[count] = temp;
                             count++;
                         }
                     }
                 }
                 java.util.Arrays.sort(array);
-                median[i][j] = array[count/2];
+                median[i][j] = array[count / 2];
             }
         }
         transformBack("median", median);
     }
 
-    public static void edgeDetect() throws IOException{
-        edge = new int[height][width];
+    public static void edgeDetect() throws IOException {
+        edge  = new int[height][width];
         for (int y = 1; y < height - 1; y++) {
             for (int x = 1; x < width - 1; x++) {
 
-                int temp [][] = new int[3][3];
+                int temp[][] = new int[3][3];
 
                 for (int i = 0; i < 3; i++) {
                     for (int j = 0; j < 3; j++) {
-                        temp[i][j] = average[x-1+i][ y-1+j];
+                        temp[i][j] = average[x - 1 + i][y - 1 + j];
                     }
                 }
-                int deltaX = 0, deltaY = 0, posX = 0, posY = 0, negX = 0, negY = 0;
+                int deltaX, deltaY, posX = 0, posY = 0, negX = 0, negY = 0;
 
                 for (int col = 0; col < 3; col++) {
                     negY += temp[2][col];
@@ -87,7 +91,7 @@ public class Image {
                     posY += temp[row][0];
                 }
                 deltaX = posX - negX;
-                int magnitude = threshold((int) Math.sqrt(deltaX*deltaX + deltaY*deltaY));
+                int magnitude = adapt((int) Math.sqrt(deltaX * deltaX + deltaY * deltaY));
                 edge[x][y] = magnitude;
             }
         }
@@ -96,33 +100,91 @@ public class Image {
     }
 
     public static void hough() throws IOException {
-        hough = new int[height][width];
-        for(int i = 0; i < height; i++){
-            for(int j = 0; j < 2*width; j++){
-                accumulator[i][j] = 0;
+        int temp = Math.max(height, width),
+                houghWidth = width*2, houghHeight = (int) Math.sqrt(2) * temp;
+        double thetaStep = Math.PI / houghWidth;
+        int centX = width / 2;
+        int centY = height / 2;
+
+        accumulator = new int[houghWidth][2*houghHeight];
+
+        for (int x = 1; x < height; x++) {
+            for (int y = 1; y < width; y++) {
+                accumulator[x][y] = 0;
             }
         }
+        System.out.println(houghHeight);
 
-        for (int x = 1; x < height - 1; x++) {
-            for (int y = 1; y < width - 1; y++) {
-                if(edge[x][y] == 225){
-                    for (int i =0; i< 500; i++){
-
+        for (int x = 1; x < height; x++) {
+            for (int y = 1; y < width; y++) {
+                if (checkThreshold(edge[x][y])) {
+                    for (int i = 0; i < houghWidth; i++) {
+                        temp = (int)
+                                (((x - centX) * Math.cos(i * thetaStep)) +
+                                        ((y - centY) * Math.sin(i * thetaStep)));
+                        temp = temp + houghHeight;
+                        accumulator[i][temp]++;
                     }
                 }
             }
         }
-        print(hough);
-        transformBack("edge", edge);
+
+        int firstX = 0, secondX = 0 , thirdX = 0, firstY = 0, secondY = 0, thirdY = 0;
+        for(int x = 0; x < height; x++) {
+            for (int y = 0; y < width; y++) {
+                if (accumulator[x][y] > accumulator[firstX][firstY]) {
+                    thirdX = secondX;
+                    thirdY = secondY;
+                    secondX = firstX;
+                    secondY = firstY;
+                    firstX = x;
+                    firstY = y;
+                } else if (accumulator[x][y] > accumulator[secondX][secondY]) {
+                    thirdX = secondX;
+                    thirdY = secondY;
+                    secondX = x;
+                    secondY = y;
+                } else if (accumulator[x][y] > accumulator[thirdX][thirdY]) {
+                    thirdX = x;
+                    thirdY = y;
+                }
+            }
+        }
+
+        System.out.println( "First: " + firstX + "," + firstY + " = " + accumulator[firstX][firstY] +"\n" +
+                "Second: " + secondX + "," + secondY + " = " + accumulator[secondX][secondY] +"\n" +
+                "Third: " + thirdX + "," + thirdY + " = " + accumulator[thirdX][thirdY] +"\n");
+
+
+        for(int x = 1; x < height; x++) {
+            for (int y = 1; y < m.length; y++) {
+                edge[x][(firstY + (x * m[y]))] = 255;
+                edge[x][(secondY + (x * m[y]))] = 255;
+                edge[x][(thirdY + (x * m[y]))] = 255;
+            }
+        }
+        //print(edge);
+        transformBack("line", edge);
     }
 
-
-    public static int threshold(int a) {
-        if (a < 0 || a <= 110)
+    public static int adapt(int a) {
+        if (a < 0 )
             return 0;
-        else if (a > 255 || a >= 140)
+        else if (a > 255)
             return 255;
         return a;
+    }
+
+    public static boolean checkThreshold(int a){
+        if(a == 0)
+            return true;
+        else if (a == 255)
+            return true;
+        return false;
+    }
+
+    public static void test(){
+        System.out.println("test");
     }
 
     public static void transformBack(String newFile, int [][] array) throws IOException {
