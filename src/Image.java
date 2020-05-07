@@ -3,6 +3,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.*;
+import java.util.Vector;
 
 public class Image {
     public static int width;
@@ -12,12 +13,7 @@ public class Image {
     public static int[][] average;
     public static int[][] median;
     public static int[][] edge;
-    //public static int[][] hough = new int[height][width];
-
     public static int[][] accumulator;
-
-
-
 
     public static void initialData() throws IOException {
         transformBack("data2D", data2D);
@@ -100,39 +96,50 @@ public class Image {
     }
 
     public static void hough() throws IOException {
-        int temp = Math.max(height, width),
-                houghWidth = width*2, houghHeight = (int) Math.sqrt(2) * temp;
-        double thetaStep = Math.PI / houghWidth;
+        int maxTheta = 180;
+        final double thetaStep = Math.PI / maxTheta;
         int centX = width / 2;
         int centY = height / 2;
+        int houghHeight = (int) (Math.sqrt(2) * Math.max(height, width)) / 2;
+        int doubleHeight = 2 * houghHeight;
+        double[] sinCache = new double[maxTheta];
+        double[] cosCache = sinCache.clone();
+        for (int t = 0; t < maxTheta; t++) {
+            double realTheta = t * thetaStep;
+            sinCache[t] = Math.sin(realTheta);
+            cosCache[t] = Math.cos(realTheta);
+        }
 
-        accumulator = new int[houghWidth][2*houghHeight];
-
-        for (int x = 1; x < height; x++) {
-            for (int y = 1; y < width; y++) {
+        accumulator = new int[maxTheta][doubleHeight];
+        //Initialize all values in accumulator array to 0
+        for (int x = 0; x < maxTheta; x++) {
+            for (int y = 0; y < doubleHeight; y++) {
                 accumulator[x][y] = 0;
             }
         }
-        System.out.println(houghHeight);
 
-        for (int x = 1; x < height; x++) {
-            for (int y = 1; y < width; y++) {
-                if (checkThreshold(edge[x][y])) {
-                    for (int i = 0; i < houghWidth; i++) {
-                        temp = (int)
-                                (((x - centX) * Math.cos(i * thetaStep)) +
-                                        ((y - centY) * Math.sin(i * thetaStep)));
-                        temp = temp + houghHeight;
-                        accumulator[i][temp]++;
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (!checkThreshold(edge[x][y])) {
+                    for (int i = 0; i < maxTheta; i++) {
+                        int r = (int) (((x - centX) * cosCache[i]) + ((y - centY) * sinCache[i]));
+                        r += houghHeight;
+                        if (r < 0 || r >= doubleHeight) continue;
+                        accumulator[i][r]++;
                     }
                 }
             }
         }
 
-        int firstX = 0, secondX = 0 , thirdX = 0, firstY = 0, secondY = 0, thirdY = 0;
-        for(int x = 0; x < height; x++) {
-            for (int y = 0; y < width; y++) {
+        print(accumulator);
+        int firstX = 0, secondX = 0, thirdX = 0, firstY = 0, secondY = 0, thirdY = 0, fourthX = 0, fourthY = 0, fifthX = 0, fifthY = 0;
+        for (int x = 2; x < maxTheta; x++) {
+            for (int y = 0; y < doubleHeight; y++) {
                 if (accumulator[x][y] > accumulator[firstX][firstY]) {
+                    fifthX = fourthX;
+                    fifthY = fourthY;
+                    fourthX = thirdX;
+                    fourthY = thirdY;
                     thirdX = secondX;
                     thirdY = secondY;
                     secondX = firstX;
@@ -140,31 +147,59 @@ public class Image {
                     firstX = x;
                     firstY = y;
                 } else if (accumulator[x][y] > accumulator[secondX][secondY]) {
+                    fifthX = fourthX;
+                    fifthY = fourthY;
+                    fourthX = thirdX;
+                    fourthY = thirdY;
                     thirdX = secondX;
                     thirdY = secondY;
                     secondX = x;
                     secondY = y;
                 } else if (accumulator[x][y] > accumulator[thirdX][thirdY]) {
+                    fifthX = fourthX;
+                    fifthY = fourthY;
+                    fourthX = thirdX;
+                    fourthY = thirdY;
                     thirdX = x;
                     thirdY = y;
+                } else if (accumulator[x][y] > accumulator[fourthX][fourthY]) {
+                    fifthX = fourthX;
+                    fifthY = fourthY;
+                    fourthX = x;
+                    fourthY = y;
+                }
+                else if (accumulator[x][y] > accumulator[fifthX][fifthY]){
+                    fifthX = x;
+                    fifthY = y;
                 }
             }
         }
 
-        System.out.println( "First: " + firstX + "," + firstY + " = " + accumulator[firstX][firstY] +"\n" +
-                "Second: " + secondX + "," + secondY + " = " + accumulator[secondX][secondY] +"\n" +
-                "Third: " + thirdX + "," + thirdY + " = " + accumulator[thirdX][thirdY] +"\n");
+        System.out.println("First: " + firstX + "," + firstY + " = " + accumulator[firstX][firstY] + "\n" +
+                "Second: " + secondX + "," + secondY + " = " + accumulator[secondX][secondY] + "\n" +
+                "Third: " + thirdX + "," + thirdY + " = " + accumulator[thirdX][thirdY] + "\n" +
+                "Fourth: " + fourthX + "," + fourthY + " = " + accumulator[fourthX][fourthY] + "\n" +
+                "Fifth: " + fifthX + "," + fifthY + " = " + accumulator[fifthX][fifthY] + "\n");
 
 
-        for(int x = 1; x < height; x++) {
-            for (int y = 1; y < m.length; y++) {
-                edge[x][(firstY + (x * m[y]))] = 255;
-                edge[x][(secondY + (x * m[y]))] = 255;
-                edge[x][(thirdY + (x * m[y]))] = 255;
-            }
-        }
+
+        alter(firstX, firstY);
+        alter(secondX, secondY);
+        alter(thirdX, thirdY);
+        alter(fourthX, fourthY);
+        alter(fifthX, fifthY);
         //print(edge);
-        transformBack("line", edge);
+        transformBack("line", accumulator);
+    }
+
+    public static void alter(int m, int b){
+        if (m > 128) m = m / 2;
+        if (b > 128) b = b / 2;
+        for(int x = 0; x < height; x++ ){
+            int y = ( m * x ) + b;
+            if ( y < 180 )
+                accumulator[x][y] = 255;
+        }
     }
 
     public static int adapt(int a) {
@@ -208,8 +243,8 @@ public class Image {
     }
 
     public static void print(int [][] array) {
-        for (int row = 0; row < Image.height; row++) {
-            for (int col = 0; col < Image.width; col++)
+        for (int row = 0; row < array.length; row++) {
+            for (int col = 0; col < array.length; col++)
                 System.out.print(array[row][col] + " ");
             System.out.println();
         }
